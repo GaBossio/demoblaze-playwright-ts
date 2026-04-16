@@ -2,7 +2,9 @@ import { test, expect } from '@playwright/test';
 import { HomePage } from '../pages/HomePage.ts';
 import { ProductPage } from '../pages/ProductPage.ts';
 import { CartPage } from '../pages/CartPage.ts';
-import { categories, products } from '../test-data/cart.ts';
+import { CheckoutModal } from '../components/CheckoutModal.ts';
+import { PurchaseConfirmation } from '../components/PurchaseConfirmation.ts';
+import { categories, products, checkoutData } from '../test-data/cart.ts';
 
 test.describe('Gestión del Carrito de Compras', () => {
 
@@ -13,6 +15,8 @@ test.describe('Gestión del Carrito de Compras', () => {
     const homePage = new HomePage(page);
     const productPage = new ProductPage(page);
     const cartPage = new CartPage(page);
+    const checkoutModal = new CheckoutModal(page);
+    const purchaseConfirmation = new PurchaseConfirmation(page);
 
     const productName = products.phone;
 
@@ -35,7 +39,18 @@ test.describe('Gestión del Carrito de Compras', () => {
     //Validar que el total del carrito coincide con el precio del producto
     const totalAmount = await cartPage.getTotalAmount();
     expect(totalAmount).toBe(productPrice);
-    await cartPage.clickPlaceOrder();
-  });
 
+    //Completar el modal de checkout y confirmar la compra
+    await cartPage.clickPlaceOrder();
+    await checkoutModal.fillForm(checkoutData);
+    await checkoutModal.submitPurchase();
+
+    //Validar el popup de confirmación y que el ID de compra existe y es numérico
+    const orderId = await purchaseConfirmation.validateSuccessAndGetOrderId();
+    expect(orderId).toBeDefined();
+    expect(orderId.length).toBeGreaterThan(0);
+    expect(orderId).toMatch(/^\d+$/);
+
+    console.log(`Compra realizada. Order ID: ${orderId}`);
+  });
 });
