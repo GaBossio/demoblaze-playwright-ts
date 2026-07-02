@@ -1,0 +1,39 @@
+name: 2. Receive and Report Back
+
+on:
+  repository_dispatch:
+    types: [test-connection] # Matches the event-type from Repo A
+
+jobs:
+  respond:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report Success Status and Comment to Repo A
+        uses: actions/github-script@v7
+        with:
+          token: ${{ secrets.GH_PAT_FOR_STATUS }}
+          script: |
+            const [owner, repo] = context.payload.client_payload.repository.split('/');
+            const sha = context.payload.client_payload.sha;
+            const runUrl = `${process.env.GITHUB_SERVER_URL}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            
+            console.log(`Reporting back to ${owner}/${repo} at commit ${sha}`);
+            
+            // 1. Set a Green Checkmark (Commit Status)
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha,
+              state: 'success',
+              context: 'Test Connection (Repo B)',
+              description: 'Connection successful!',
+              target_url: runUrl
+            });
+            
+            // 2. Post a Comment on the Commit
+            await github.rest.repos.createCommitComment({
+              owner,
+              repo,
+              commit_sha: sha,
+              body: `### 🎉 Connection Successful!\n\nRepo B successfully received the payload and used its token to report back to Repo A.\n[View Repo B's Action Run](${runUrl})`
+            });
